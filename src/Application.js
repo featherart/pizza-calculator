@@ -3,65 +3,75 @@ import React, { Component } from 'react';
 import Title from './Title';
 import Input from './Input';
 import Result from './Result';
-import './style.css';
+import pizzaCalculatorStore from './PizzaCalculatorStore'
+import * as actions from './actions';
 
 import calculatePizzasNeeded from './lib/calculate-pizzas-needed';
 
-const initialState = {
-  numberOfPeople: 10,
-  slicesPerPerson: 2,
-};
+export default class ApplicationContainer extends Component {
+  state = pizzaCalculatorStore.getState();
 
-const WithCalculator = WrappedComponent => {
-  return class extends Component {
-    static displayName = `WithCalculator(${WrappedComponent.displayName ||
-      WrappedComponent.name})`; // give the class a name so you can find it, not necessary but helpful!
+  updateCalculations = () => {
+    this.setState(pizzaCalculatorStore.getState());
+  }
 
-    state = { ...initialState };
+  componentDidMount() {
+    pizzaCalculatorStore.on('change', this.updateCalculations);
+  }
 
-    updateNumberOfPeople = event => {
-      const numberOfPeople = parseInt(event.target.value, 10);
-      this.setState({ numberOfPeople });
-    };
+  componentWillUnmount() {
+    pizzaCalculatorStore.off('change', this.updateCalculations);
+  }
 
-    updateSlicesPerPerson = event => {
-      const slicesPerPerson = parseInt(event.target.value, 10);
-      this.setState({ slicesPerPerson });
-    };
+  render() {
+    return (
+      <PizzaCalculator
+        {...this.state}
+        updateNumberOfPeople={actions.updateNumberOfPeople}
+        updateSlicesPerPerson={actions.updateSlicesPerPerson}
+        reset={actions.reset}
+      />
+    );
+  }
+}
 
-    reset = event => {
-      this.setState({ ...initialState });
-    };
+class PizzaCalculator extends Component {
+  state = pizzaCalculatorStore.getState();
 
-    render() {
-      const { numberOfPeople, slicesPerPerson } = this.state;
-      const numberOfPizzas = calculatePizzasNeeded(
-        numberOfPeople,
-        slicesPerPerson,
-      );
-
-      return (
-        <WrappedComponent
-          numberOfPeople={numberOfPeople}
-          slicesPerPerson={slicesPerPerson}
-          numberOfPizzas={numberOfPizzas}
-          updateNumberOfPeople={this.updateNumberOfPeople}
-          updateSlicesPerPerson={this.updateSlicesPerPerson}
-        />
-      );
-    }
+  updateNumberOfPeople = event => {
+    const numberOfPeople = parseInt(event.target.value, 10);
+    actions.updateNumberOfPeople(numberOfPeople);
   };
-};
 
-class Application extends Component {
+  updateSlicesPerPerson = event => {
+    const slicesPerPerson = parseInt(event.target.value, 10);
+    actions.updateSlicesPerPerson(slicesPerPerson)
+  };
+
+  updateState() {
+    this.setState(pizzaCalculatorStore.getState());
+  }
+
+  componentDidMount() {
+    pizzaCalculatorStore.on('change', this.updateState);
+  }
+
+  componentWillUnmount() {
+    pizzaCalculatorStore.off('change', this.updateState);
+  }
+
   render() {
     const {
       numberOfPeople,
       slicesPerPerson,
-      numberOfPizzas,
-      updateNumberOfPeople,
-      updateSlicesPerPerson,
+      reset,
     } = this.props;
+
+    const numberOfPizzas = calculatePizzasNeeded(
+      numberOfPeople,
+      slicesPerPerson,
+    );
+
     return (
       <div className="Application">
         <Title />
@@ -70,22 +80,20 @@ class Application extends Component {
           type="number"
           min={0}
           value={numberOfPeople}
-          onChange={updateNumberOfPeople}
+          onChange={this.updateNumberOfPeople}
         />
         <Input
           label="Slices Per Person"
           type="number"
           min={0}
           value={slicesPerPerson}
-          onChange={updateSlicesPerPerson}
+          onChange={this.updateSlicesPerPerson}
         />
         <Result amount={numberOfPizzas} />
-        <button className="full-width" onClick={this.reset}>
+        <button className="full-width" onClick={reset}>
           Reset
         </button>
       </div>
     );
   }
 }
-
-export default WithCalculator(Application);
